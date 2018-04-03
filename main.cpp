@@ -263,6 +263,7 @@ void init()
 	shaders.push_back(loadShader("simple.vs", "procedural.fs")); //procedural
 	shaders.push_back(loadShader("simple.vs", "lava.fs")); //lava
 	shaders.push_back(loadShader("simple.vs", "test.fs")); //water
+	shaders.push_back(loadShader("simple.vs", "multitex.fs")); //multitex
 	shaders.push_back(loadShader("normal.vs", "normal.fs")); //normal
 	
 	currentPost = 0;
@@ -349,7 +350,7 @@ void init()
 
 	}
 
-	glGenTextures(1, &textureId);
+	glGenTextures(2, &textureId);
 	glBindTexture(GL_TEXTURE_2D, textureId);
 	int w, h, comp;
 	unsigned char* data = stbi_load("BrickTexture.png", &w, &h, &comp, 4);
@@ -362,8 +363,9 @@ void init()
 	stbi_image_free(data);
 
 
-	glGenTextures(1, &normalId);
-	glBindTexture(GL_TEXTURE_2D, normalId);
+	//glGenTextures(1, &normalId);
+	//glBindTexture(GL_TEXTURE_2D, normalId);
+	glBindTexture(GL_TEXTURE_2D, textureId + 1);
 	unsigned char* data2 = stbi_load("BrickNormal.png", &w, &h, &comp, 4);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, data2);
 
@@ -477,6 +479,8 @@ void display()
 	glUniform1f(pShader->getUniform("time"), glutGet(GLUT_ELAPSED_TIME) / 1000.0f);
 
 	glUniform1i(pShader->getUniform("s_texture"), 0);
+
+	glUniform1i(shader->getUniform("s_texture2"), 1);
 	
 	glUniform2f(pShader->getUniform("resolution"), screenSize.x, screenSize.y);
 

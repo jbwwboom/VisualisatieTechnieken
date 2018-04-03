@@ -38,5 +38,6 @@
     <None Include="normal.vs" />
     <None Include="bump.fs" />
     <None Include="normal.fs" />
+    <None Include="multitex.fs" />
   </ItemGroup>
 </Project>
