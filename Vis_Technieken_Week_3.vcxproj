@@ -88,6 +88,7 @@
     <None Include="bloom.fs" />
     <None Include="dof.fs" />
     <None Include="lava.fs" />
+    <None Include="bump.fs" />
     <None Include="normal.fs" />
     <None Include="normal.vs" />
     <None Include="pixel.fs" />

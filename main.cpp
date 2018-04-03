@@ -109,6 +109,11 @@ Shader* loadShader(std::string vs, std::string fs)
 	glBindAttribLocation(ret->programId, 1, "a_color");			// zet de kleur op vertex attribuut 1
 	glBindAttribLocation(ret->programId, 2, "a_texcoord");		// zet de texcoord op vertex attribuut 2
 	glBindAttribLocation(ret->programId, 3, "a_normal");		// zet de texcoord op vertex attribuut 2
+	glBindAttribLocation(ret->programId, 4, "aPos");
+	glBindAttribLocation(ret->programId, 5, "aNormal");
+	glBindAttribLocation(ret->programId, 6, "aTexCoords");
+	glBindAttribLocation(ret->programId, 7, "aTangent");
+	glBindAttribLocation(ret->programId, 8, "aBitangent");
 	glLinkProgram(ret->programId);								// link het programma, zorg dat alle attributes en varying gelinked zijn
 	glUseProgram(ret->programId);								// Zet dit als actieve programma
 
@@ -118,6 +123,9 @@ Shader* loadShader(std::string vs, std::string fs)
 std::vector<Vertex> vertices;
 std::vector<Vertex> cube;
 GLuint textureId;
+GLuint normalId;
+
+
 Shader* normalShader;
 Shader* postShader;
 
@@ -202,26 +210,32 @@ void renderQuad()
 			pos3.x, pos3.y, pos3.z, nm.x, nm.y, nm.z, uv3.x, uv3.y, tangent2.x, tangent2.y, tangent2.z, bitangent2.x, bitangent2.y, bitangent2.z,
 			pos4.x, pos4.y, pos4.z, nm.x, nm.y, nm.z, uv4.x, uv4.y, tangent2.x, tangent2.y, tangent2.z, bitangent2.x, bitangent2.y, bitangent2.z
 		};
+
+
+
 		// configure plane VAO
 		glGenVertexArrays(1, &quadVAO);
 		glGenBuffers(1, &quadVBO);
 		glBindVertexArray(quadVAO);
 		glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
 		glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
-		glEnableVertexAttribArray(0);
-		glVertexAttribPointer(0, 3, GL_FLOAT, GL_FALSE, 14 * sizeof(float), (void*)0);
-		glEnableVertexAttribArray(1);
-		glVertexAttribPointer(1, 3, GL_FLOAT, GL_FALSE, 14 * sizeof(float), (void*)(3 * sizeof(float)));
-		glEnableVertexAttribArray(2);
-		glVertexAttribPointer(2, 2, GL_FLOAT, GL_FALSE, 14 * sizeof(float), (void*)(6 * sizeof(float)));
-		glEnableVertexAttribArray(3);
-		glVertexAttribPointer(3, 3, GL_FLOAT, GL_FALSE, 14 * sizeof(float), (void*)(8 * sizeof(float)));
 		glEnableVertexAttribArray(4);
-		glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, 14 * sizeof(float), (void*)(11 * sizeof(float)));
+		glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, 14 * sizeof(float), (void*)0);
+		glEnableVertexAttribArray(5);
+		glVertexAttribPointer(5, 3, GL_FLOAT, GL_FALSE, 14 * sizeof(float), (void*)(3 * sizeof(float)));
+		glEnableVertexAttribArray(6);
+		glVertexAttribPointer(6, 2, GL_FLOAT, GL_FALSE, 14 * sizeof(float), (void*)(6 * sizeof(float)));
+		glEnableVertexAttribArray(7);
+		glVertexAttribPointer(7, 3, GL_FLOAT, GL_FALSE, 14 * sizeof(float), (void*)(8 * sizeof(float)));
+		glEnableVertexAttribArray(8);
+		glVertexAttribPointer(8, 3, GL_FLOAT, GL_FALSE, 14 * sizeof(float), (void*)(11 * sizeof(float)));
+		glBindVertexArray(0);
+		glBindBuffer(GL_ARRAY_BUFFER, 0);
 	}
-	glBindVertexArray(quadVAO);
+	//glBindVertexArray(quadVAO);
 	glDrawArrays(GL_TRIANGLES, 0, 6);
-	glBindVertexArray(0);
+	//glBindVertexArray(0);
+
 }
 
 
@@ -229,6 +243,14 @@ void renderQuad()
 void init()
 {
 	glewInit();
+
+	if (GLEW_ARB_debug_output)
+	{
+		glDebugMessageCallback(&onDebug, NULL);
+		glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS_ARB);
+		glEnable(GL_DEBUG_OUTPUT);
+	}
+
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_BLEND);
 	glClearColor(0, 0, 0, 1);
@@ -241,6 +263,7 @@ void init()
 	shaders.push_back(loadShader("simple.vs", "procedural.fs")); //procedural
 	shaders.push_back(loadShader("simple.vs", "lava.fs")); //lava
 	shaders.push_back(loadShader("simple.vs", "test.fs")); //water
+	shaders.push_back(loadShader("normal.vs", "normal.fs")); //normal
 	
 	currentPost = 0;
 	posts.push_back(loadShader("postprocess.vs", "postprocess.fs")); //standard
@@ -248,7 +271,10 @@ void init()
 	posts.push_back(loadShader("postprocess.vs", "pixel.fs")); //pixelated
 	posts.push_back(loadShader("postprocess.vs", "bloom.fs")); //bloom
 	posts.push_back(loadShader("postprocess.vs", "radial.fs")); //radial blur
-	
+	posts.push_back(loadShader("postprocess.vs", "bump.fs")); //bump
+	posts.push_back(loadShader("normal.vs", "normal.fs")); //normal
+
+
 	glEnableVertexAttribArray(0);							// positie
 
 	if (glDebugMessageCallback)
@@ -323,14 +349,10 @@ void init()
 
 	}
 
-
-
-
 	glGenTextures(1, &textureId);
 	glBindTexture(GL_TEXTURE_2D, textureId);
 	int w, h, comp;
-	unsigned char* data = stbi_load("test.png", &w, &h, &comp, 4);
-	//unsigned char* data = stbi_load("normalmap.png", &w, &h, &comp, 4);
+	unsigned char* data = stbi_load("BrickTexture.png", &w, &h, &comp, 4);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
 
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -338,6 +360,18 @@ void init()
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 	stbi_image_free(data);
+
+
+	glGenTextures(1, &normalId);
+	glBindTexture(GL_TEXTURE_2D, normalId);
+	unsigned char* data2 = stbi_load("BrickNormal.png", &w, &h, &comp, 4);
+	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, data2);
+
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
+	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
+	stbi_image_free(data2);
 
 
 
@@ -361,8 +395,6 @@ void init()
 	glBindRenderbuffer(GL_RENDERBUFFER, rboId);
 	glRenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH_COMPONENT, 2048, 2048);
 	glFramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_RENDERBUFFER, rboId);
-
-	//renderQuad();
 
 	glBindFramebuffer(GL_FRAMEBUFFER, 0);
 }
@@ -393,16 +425,19 @@ void display()
 	glUniform1f(shader->getUniform("time"), glutGet(GLUT_ELAPSED_TIME) / 1000.0f);
 	glUniform1i(shader->getUniform("s_texture"), 0);
 
+	glUniform1i(shader->getUniform("s_texture2"), 1);
+
 	glUniform2f(shader->getUniform("resolution"), screenSize.x, screenSize.y);
 
 
 
 	glBindTexture(GL_TEXTURE_2D, textureId);
+	//glBindTexture(GL_TEXTURE_2D, normalId);
 	glVertexAttribPointer(0, 3, GL_FLOAT, false, 11 * 4, &vertices[0]);									//geef aan dat de posities op deze locatie zitten
 	glVertexAttribPointer(1, 3, GL_FLOAT, false, 11 * 4, ((float*)&vertices[0]) + 3);					//geef aan dat de kleuren op deze locatie zitten
 	glVertexAttribPointer(2, 2, GL_FLOAT, false, 11 * 4, ((float*)&vertices[0]) + 6);					//geef aan dat de texcoords op deze locatie zitten
 	glVertexAttribPointer(3, 3, GL_FLOAT, true, 11 * 4, ((float*)&vertices[0]) + 8);					//geef aan dat de texcoords op deze locatie zitten
-	
+
 	glDrawArrays(GL_TRIANGLES, 0, vertices.size());																//en tekenen :)
 
 	glUniformMatrix4fv(shader->getUniform("modelViewMatrix"), 1, 0, glm::value_ptr(glm::rotate(glm::translate(mv, glm::vec3(0, 5, 0)), rotation, glm::normalize(glm::vec3(0.5, 1, 0.25)))));								//onleesbare code
@@ -411,6 +446,9 @@ void display()
 	glVertexAttribPointer(2, 2, GL_FLOAT, false, 11 * 4, ((float*)&cube[0]) + 6);					//geef aan dat de texcoords op deze locatie zitten
 	glVertexAttribPointer(3, 3, GL_FLOAT, true, 11 * 4, ((float*)&cube[0]) + 8);					//geef aan dat de texcoords op deze locatie zitten
 	glDrawArrays(GL_QUADS, 0, cube.size());																//en tekenen :)
+
+
+	renderQuad();
 
 
 
