@@ -87,6 +87,7 @@
     <None Include="appear.fs" />
     <None Include="bloom.fs" />
     <None Include="dof.fs" />
+    <None Include="glow.fs" />
     <None Include="lava.fs" />
     <None Include="bump.fs" />
     <None Include="multitex.fs" />

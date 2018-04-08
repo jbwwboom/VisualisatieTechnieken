@@ -1,11 +1,5 @@
 #version 330
 
-uniform vec3 diffuse_color;
-uniform float alpha;
-
-uniform float edge;
-uniform float mid;
-
 in vec3 normal;
 
 void main()

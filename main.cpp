@@ -109,19 +109,49 @@ Shader* loadShader(std::string vs, std::string fs)
 	glBindAttribLocation(ret->programId, 1, "a_color");			// zet de kleur op vertex attribuut 1
 	glBindAttribLocation(ret->programId, 2, "a_texcoord");		// zet de texcoord op vertex attribuut 2
 	glBindAttribLocation(ret->programId, 3, "a_normal");		// zet de texcoord op vertex attribuut 2
-	glBindAttribLocation(ret->programId, 4, "aPos");
-	glBindAttribLocation(ret->programId, 5, "aNormal");
-	glBindAttribLocation(ret->programId, 6, "aTexCoords");
-	glBindAttribLocation(ret->programId, 7, "aTangent");
-	glBindAttribLocation(ret->programId, 8, "aBitangent");
+	glBindAttribLocation(ret->programId, 4, "a_tangent");
+	glBindAttribLocation(ret->programId, 5, "a_bitangent");
 	glLinkProgram(ret->programId);								// link het programma, zorg dat alle attributes en varying gelinked zijn
 	glUseProgram(ret->programId);								// Zet dit als actieve programma
 
 	return ret;
 }
 
+void calculateTangentsBitangents(std::vector<Vertex> & vertices, std::vector<glm::vec3> & tangents, std::vector<glm::vec3> & bitangents)
+{
+	for (int i = 0; i < vertices.size(); i += 3) {
+		// Shortcuts for vertices
+		glm::vec3 & v0 = vertices[i + 0].position;
+		glm::vec3 & v1 = vertices[i + 1].position;
+		glm::vec3 & v2 = vertices[i + 2].position;
+		// Shortcuts for UVs
+		glm::vec2 & uv0 = vertices[i + 0].texcoord;
+		glm::vec2 & uv1 = vertices[i + 1].texcoord;
+		glm::vec2 & uv2 = vertices[i + 2].texcoord;
+		// Edges of the triangle : position delta
+		glm::vec3 deltaPos1 = v1 - v0;
+		glm::vec3 deltaPos2 = v2 - v0;
+		// UV delta
+		glm::vec2 deltaUV1 = uv1 - uv0;
+		glm::vec2 deltaUV2 = uv2 - uv0;
+
+		float r = 1.0f / (deltaUV1.x * deltaUV2.y - deltaUV1.y * deltaUV2.x);
+		glm::vec3 tangent = (deltaPos1 * deltaUV2.y - deltaPos2 * deltaUV1.y)*r;
+		glm::vec3 bitangent = (deltaPos2 * deltaUV1.x - deltaPos1 * deltaUV2.x)*r;
+		tangents.push_back(tangent);
+		tangents.push_back(tangent);
+		tangents.push_back(tangent);
+		bitangents.push_back(bitangent);
+		bitangents.push_back(bitangent);
+		bitangents.push_back(bitangent);
+	}
+}
+
 std::vector<Vertex> vertices;
 std::vector<Vertex> cube;
+
+std::vector<glm::vec3> tangents;
+std::vector<glm::vec3> bitangents;
 GLuint textureId;
 GLuint normalId;
 
@@ -138,108 +168,6 @@ int currentPost;
 GLuint fboTextureId;
 GLuint fboId;
 
-unsigned int quadVAO = 0;
-unsigned int quadVBO;
-void renderQuad()
-{
-	if (quadVAO == 0)
-	{
-		// positions
-		glm::vec3 pos1(-1.0f, 1.0f, 0.0f);
-		glm::vec3 pos2(-1.0f, -1.0f, 0.0f);
-		glm::vec3 pos3(1.0f, -1.0f, 0.0f);
-		glm::vec3 pos4(1.0f, 1.0f, 0.0f);
-		// texture coordinates
-		glm::vec2 uv1(0.0f, 1.0f);
-		glm::vec2 uv2(0.0f, 0.0f);
-		glm::vec2 uv3(1.0f, 0.0f);
-		glm::vec2 uv4(1.0f, 1.0f);
-		// normal vector
-		glm::vec3 nm(0.0f, 0.0f, 1.0f);
-
-		// calculate tangent/bitangent vectors of both triangles
-		glm::vec3 tangent1, bitangent1;
-		glm::vec3 tangent2, bitangent2;
-		// triangle 1
-		// ----------
-		glm::vec3 edge1 = pos2 - pos1;
-		glm::vec3 edge2 = pos3 - pos1;
-		glm::vec2 deltaUV1 = uv2 - uv1;
-		glm::vec2 deltaUV2 = uv3 - uv1;
-
-		GLfloat f = 1.0f / (deltaUV1.x * deltaUV2.y - deltaUV2.x * deltaUV1.y);
-
-		tangent1.x = f * (deltaUV2.y * edge1.x - deltaUV1.y * edge2.x);
-		tangent1.y = f * (deltaUV2.y * edge1.y - deltaUV1.y * edge2.y);
-		tangent1.z = f * (deltaUV2.y * edge1.z - deltaUV1.y * edge2.z);
-		tangent1 = glm::normalize(tangent1);
-
-		bitangent1.x = f * (-deltaUV2.x * edge1.x + deltaUV1.x * edge2.x);
-		bitangent1.y = f * (-deltaUV2.x * edge1.y + deltaUV1.x * edge2.y);
-		bitangent1.z = f * (-deltaUV2.x * edge1.z + deltaUV1.x * edge2.z);
-		bitangent1 = glm::normalize(bitangent1);
-
-		// triangle 2
-		// ----------
-		edge1 = pos3 - pos1;
-		edge2 = pos4 - pos1;
-		deltaUV1 = uv3 - uv1;
-		deltaUV2 = uv4 - uv1;
-
-		f = 1.0f / (deltaUV1.x * deltaUV2.y - deltaUV2.x * deltaUV1.y);
-
-		tangent2.x = f * (deltaUV2.y * edge1.x - deltaUV1.y * edge2.x);
-		tangent2.y = f * (deltaUV2.y * edge1.y - deltaUV1.y * edge2.y);
-		tangent2.z = f * (deltaUV2.y * edge1.z - deltaUV1.y * edge2.z);
-		tangent2 = glm::normalize(tangent2);
-
-
-		bitangent2.x = f * (-deltaUV2.x * edge1.x + deltaUV1.x * edge2.x);
-		bitangent2.y = f * (-deltaUV2.x * edge1.y + deltaUV1.x * edge2.y);
-		bitangent2.z = f * (-deltaUV2.x * edge1.z + deltaUV1.x * edge2.z);
-		bitangent2 = glm::normalize(bitangent2);
-
-
-		float quadVertices[] = {
-			// positions            // normal         // texcoords  // tangent                          // bitangent
-			pos1.x, pos1.y, pos1.z, nm.x, nm.y, nm.z, uv1.x, uv1.y, tangent1.x, tangent1.y, tangent1.z, bitangent1.x, bitangent1.y, bitangent1.z,
-			pos2.x, pos2.y, pos2.z, nm.x, nm.y, nm.z, uv2.x, uv2.y, tangent1.x, tangent1.y, tangent1.z, bitangent1.x, bitangent1.y, bitangent1.z,
-			pos3.x, pos3.y, pos3.z, nm.x, nm.y, nm.z, uv3.x, uv3.y, tangent1.x, tangent1.y, tangent1.z, bitangent1.x, bitangent1.y, bitangent1.z,
-
-			pos1.x, pos1.y, pos1.z, nm.x, nm.y, nm.z, uv1.x, uv1.y, tangent2.x, tangent2.y, tangent2.z, bitangent2.x, bitangent2.y, bitangent2.z,
-			pos3.x, pos3.y, pos3.z, nm.x, nm.y, nm.z, uv3.x, uv3.y, tangent2.x, tangent2.y, tangent2.z, bitangent2.x, bitangent2.y, bitangent2.z,
-			pos4.x, pos4.y, pos4.z, nm.x, nm.y, nm.z, uv4.x, uv4.y, tangent2.x, tangent2.y, tangent2.z, bitangent2.x, bitangent2.y, bitangent2.z
-		};
-
-
-
-		// configure plane VAO
-		glGenVertexArrays(1, &quadVAO);
-		glGenBuffers(1, &quadVBO);
-		glBindVertexArray(quadVAO);
-		glBindBuffer(GL_ARRAY_BUFFER, quadVBO);
-		glBufferData(GL_ARRAY_BUFFER, sizeof(quadVertices), &quadVertices, GL_STATIC_DRAW);
-		glEnableVertexAttribArray(4);
-		glVertexAttribPointer(4, 3, GL_FLOAT, GL_FALSE, 14 * sizeof(float), (void*)0);
-		glEnableVertexAttribArray(5);
-		glVertexAttribPointer(5, 3, GL_FLOAT, GL_FALSE, 14 * sizeof(float), (void*)(3 * sizeof(float)));
-		glEnableVertexAttribArray(6);
-		glVertexAttribPointer(6, 2, GL_FLOAT, GL_FALSE, 14 * sizeof(float), (void*)(6 * sizeof(float)));
-		glEnableVertexAttribArray(7);
-		glVertexAttribPointer(7, 3, GL_FLOAT, GL_FALSE, 14 * sizeof(float), (void*)(8 * sizeof(float)));
-		glEnableVertexAttribArray(8);
-		glVertexAttribPointer(8, 3, GL_FLOAT, GL_FALSE, 14 * sizeof(float), (void*)(11 * sizeof(float)));
-		glBindVertexArray(0);
-		glBindBuffer(GL_ARRAY_BUFFER, 0);
-	}
-	//glBindVertexArray(quadVAO);
-	glDrawArrays(GL_TRIANGLES, 0, 6);
-	//glBindVertexArray(0);
-
-}
-
-
-
 void init()
 {
 	glewInit();
@@ -250,6 +178,8 @@ void init()
 		glEnable(GL_DEBUG_OUTPUT_SYNCHRONOUS_ARB);
 		glEnable(GL_DEBUG_OUTPUT);
 	}
+
+
 
 	glEnable(GL_DEPTH_TEST);
 	glEnable(GL_BLEND);
@@ -262,8 +192,8 @@ void init()
 	shaders.push_back(loadShader("simple.vs", "toon.fs")); //toon
 	shaders.push_back(loadShader("simple.vs", "procedural.fs")); //procedural
 	shaders.push_back(loadShader("simple.vs", "lava.fs")); //lava
-	shaders.push_back(loadShader("simple.vs", "test.fs")); //water
 	shaders.push_back(loadShader("simple.vs", "multitex.fs")); //multitex
+	shaders.push_back(loadShader("simple.vs", "bump.fs")); //bump
 	shaders.push_back(loadShader("normal.vs", "normal.fs")); //normal
 	
 	currentPost = 0;
@@ -272,8 +202,7 @@ void init()
 	posts.push_back(loadShader("postprocess.vs", "pixel.fs")); //pixelated
 	posts.push_back(loadShader("postprocess.vs", "bloom.fs")); //bloom
 	posts.push_back(loadShader("postprocess.vs", "radial.fs")); //radial blur
-	posts.push_back(loadShader("postprocess.vs", "bump.fs")); //bump
-	posts.push_back(loadShader("normal.vs", "normal.fs")); //normal
+	posts.push_back(loadShader("postprocess.vs", "dof.fs")); //dof
 
 
 	glEnableVertexAttribArray(0);							// positie
@@ -330,7 +259,8 @@ void init()
 		}
 	}
 
-	
+	calculateTangentsBitangents(vertices, tangents, bitangents);
+
 	for (int i = -1; i <= 1; i+=2)
 	{
 		cube.push_back(Vertex(glm::vec3(i, -1, -1), color, glm::vec2(0, 0), glm::vec3(i, 0, 0)));
@@ -350,10 +280,18 @@ void init()
 
 	}
 
+	calculateTangentsBitangents(cube, tangents, bitangents);
+		
 	glGenTextures(2, &textureId);
+	glActiveTexture(GL_TEXTURE0);
+	//glEnable(GL_TEXTURE_2D);
 	glBindTexture(GL_TEXTURE_2D, textureId);
 	int w, h, comp;
-	unsigned char* data = stbi_load("BrickTexture.png", &w, &h, &comp, 4);
+	//unsigned char* data = stbi_load("Test.png", &w, &h, &comp, 4);
+	//unsigned char* data = stbi_load("BrickTexture.png", &w, &h, &comp, 4);
+	unsigned char* data = stbi_load("Stone.png", &w, &h, &comp, 4);
+	//unsigned char* data = stbi_load("Asph.jpg", &w, &h, &comp, 4);
+	//unsigned char* data = stbi_load("sWall.jpg", &w, &h, &comp, 4);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, data);
 
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -362,11 +300,13 @@ void init()
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 	stbi_image_free(data);
 
+	glActiveTexture(GL_TEXTURE1);
 
-	//glGenTextures(1, &normalId);
-	//glBindTexture(GL_TEXTURE_2D, normalId);
 	glBindTexture(GL_TEXTURE_2D, textureId + 1);
-	unsigned char* data2 = stbi_load("BrickNormal.png", &w, &h, &comp, 4);
+	//unsigned char* data2 = stbi_load("BrickNormal.png", &w, &h, &comp, 4);
+	unsigned char* data2 = stbi_load("StoneNormal.png", &w, &h, &comp, 4);
+	//unsigned char* data2 = stbi_load("AsphN.jpg", &w, &h, &comp, 4);
+	//unsigned char* data2 = stbi_load("sWallN.jpg", &w, &h, &comp, 4);
 	glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, data2);
 
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
@@ -375,6 +315,7 @@ void init()
 	glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
 	stbi_image_free(data2);
 
+	glActiveTexture(GL_TEXTURE0);
 
 
 	glGenTextures(1, &fboTextureId);
@@ -422,6 +363,8 @@ void display()
 	glEnableVertexAttribArray(1);							// en vertex attribute 1
 	glEnableVertexAttribArray(2);							// en vertex attribute 2 ook
 	glEnableVertexAttribArray(3);							// en vertex attribute 3	 ook
+	glEnableVertexAttribArray(4);
+	glEnableVertexAttribArray(5);
 	glUniformMatrix4fv(shader->getUniform("projectionMatrix"), 1, 0, glm::value_ptr(glm::perspective(75.0f, (float)screenSize.x / screenSize.y, 0.1f, 5000.0f)));								//en zet de matrix in opengl
 	glUniformMatrix4fv(shader->getUniform("modelViewMatrix"), 1, 0, glm::value_ptr(mv));								//en zet de matrix in opengl
 	glUniform1f(shader->getUniform("time"), glutGet(GLUT_ELAPSED_TIME) / 1000.0f);
@@ -432,13 +375,13 @@ void display()
 	glUniform2f(shader->getUniform("resolution"), screenSize.x, screenSize.y);
 
 
-
 	glBindTexture(GL_TEXTURE_2D, textureId);
-	//glBindTexture(GL_TEXTURE_2D, normalId);
 	glVertexAttribPointer(0, 3, GL_FLOAT, false, 11 * 4, &vertices[0]);									//geef aan dat de posities op deze locatie zitten
 	glVertexAttribPointer(1, 3, GL_FLOAT, false, 11 * 4, ((float*)&vertices[0]) + 3);					//geef aan dat de kleuren op deze locatie zitten
 	glVertexAttribPointer(2, 2, GL_FLOAT, false, 11 * 4, ((float*)&vertices[0]) + 6);					//geef aan dat de texcoords op deze locatie zitten
-	glVertexAttribPointer(3, 3, GL_FLOAT, true, 11 * 4, ((float*)&vertices[0]) + 8);					//geef aan dat de texcoords op deze locatie zitten
+	glVertexAttribPointer(3, 3, GL_FLOAT, true, 11 * 4, ((float*)&vertices[0]) + 8);	//geef aan dat de texcoords op deze locatie zitten
+	glVertexAttribPointer(4, 3, GL_FLOAT, false, 0, &tangents[0]);
+    glVertexAttribPointer(5, 3, GL_FLOAT, false, 0, &bitangents[0]);
 
 	glDrawArrays(GL_TRIANGLES, 0, vertices.size());																//en tekenen :)
 
@@ -448,10 +391,6 @@ void display()
 	glVertexAttribPointer(2, 2, GL_FLOAT, false, 11 * 4, ((float*)&cube[0]) + 6);					//geef aan dat de texcoords op deze locatie zitten
 	glVertexAttribPointer(3, 3, GL_FLOAT, true, 11 * 4, ((float*)&cube[0]) + 8);					//geef aan dat de texcoords op deze locatie zitten
 	glDrawArrays(GL_QUADS, 0, cube.size());																//en tekenen :)
-
-
-	renderQuad();
-
 
 
 
@@ -480,7 +419,7 @@ void display()
 
 	glUniform1i(pShader->getUniform("s_texture"), 0);
 
-	glUniform1i(shader->getUniform("s_texture2"), 1);
+	glUniform1i(pShader->getUniform("s_texture2"), 1);
 	
 	glUniform2f(pShader->getUniform("resolution"), screenSize.x, screenSize.y);
 
@@ -488,8 +427,6 @@ void display()
 	glBindTexture(GL_TEXTURE_2D, fboTextureId);
 	glVertexAttribPointer(0, 2, GL_FLOAT, false, 2 * 4, &verts[0]);									//geef aan dat de posities op deze locatie zitten
 	glDrawArrays(GL_QUADS, 0, verts.size());																//en tekenen :)
-
-
 
 	glutSwapBuffers();
 }

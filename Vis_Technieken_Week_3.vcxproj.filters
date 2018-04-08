@@ -39,5 +39,6 @@
     <None Include="bump.fs" />
     <None Include="normal.fs" />
     <None Include="multitex.fs" />
+    <None Include="glow.fs" />
   </ItemGroup>
 </Project>

@@ -1,6 +1,7 @@
 ﻿  main.cpp
-c:\users\justi\downloads\vis_technieken_week_3\vis_technieken_week_3\main.cpp(289): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
-c:\users\justi\downloads\vis_technieken_week_3\vis_technieken_week_3\main.cpp(432): warning C4244: 'argument': conversion from 'int' to 'GLfloat', possible loss of data
-c:\users\justi\downloads\vis_technieken_week_3\vis_technieken_week_3\main.cpp(485): warning C4244: 'argument': conversion from 'int' to 'GLfloat', possible loss of data
-c:\users\justi\downloads\vis_technieken_week_3\vis_technieken_week_3\main.cpp(520): warning C4244: 'initializing': conversion from 'int' to 'float', possible loss of data
+c:\users\justi\downloads\vis_technieken_week_3\vis_technieken_week_3\main.cpp(122): warning C4018: '<': signed/unsigned mismatch
+c:\users\justi\downloads\vis_technieken_week_3\vis_technieken_week_3\main.cpp(218): warning C4244: '=': conversion from 'int' to 'float', possible loss of data
+c:\users\justi\downloads\vis_technieken_week_3\vis_technieken_week_3\main.cpp(375): warning C4244: 'argument': conversion from 'int' to 'GLfloat', possible loss of data
+c:\users\justi\downloads\vis_technieken_week_3\vis_technieken_week_3\main.cpp(424): warning C4244: 'argument': conversion from 'int' to 'GLfloat', possible loss of data
+c:\users\justi\downloads\vis_technieken_week_3\vis_technieken_week_3\main.cpp(457): warning C4244: 'initializing': conversion from 'int' to 'float', possible loss of data
   Vis_Technieken_week_3.vcxproj -> C:\Users\justi\Downloads\Vis_Technieken_Week_3\Vis_Technieken_Week_3\Debug\Vis_Technieken_week_3.exe
